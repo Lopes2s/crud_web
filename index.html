@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Estudantes</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1>Gerenciamento de Estudantes</h1>
+            <form id="formEstudante">
+                <input type="hidden" id="idEstudante">
+                <input type="text" id="nome" placeholder="Nome" required>
+                <input type="email" id="email" placeholder="Email" required>
+                <input type="date" id="dataNascimento" required>
+                <input type="file" id="foto" accept="image/jpeg,image/png">
+                <button type="submit">Salvar</button>
+                <button type="button" id="botaoCancelar" style="display: none;">Cancelar</button>
+            </form>
+        </div>
+        
+        <div class="list-container">
+            <h2>Lista de Estudantes</h2>
+            <div id="listaEstudantes"></div>
+        </div>
+    </div>
+
+    <script>
+        const URL_API = 'http://localhost:3000/api/estudantes';
+
+        // Carregar lista de estudantes
+        async function carregarEstudantes() {
+            try {
+                const resposta = await fetch(URL_API);
+                const estudantes = await resposta.json();
+                const listaEstudantes = document.getElementById('listaEstudantes');
+                listaEstudantes.innerHTML = '';
+                
+                estudantes.forEach(estudante => {
+                    const cartao = document.createElement('div');
+                    cartao.className = 'student-card';
+                    cartao.innerHTML = `
+                        <img src="${estudante.foto ? 'http://localhost:3000/imagens/' + estudante.foto : 'https://via.placeholder.com/80'}" alt="Foto do estudante">
+                        <div>
+                            <h3>${estudante.nome}</h3>
+                            <p>Email: ${estudante.email}</p>
+                            <p>Data de Nascimento: ${new Date(estudante.data_nascimento).toLocaleDateString('pt-BR')}</p>
+                            <button onclick="editarEstudante(${estudante.id})">Editar</button>
+                            <button onclick="excluirEstudante(${estudante.id})">Excluir</button>
+                        </div>
+                    `;
+                    listaEstudantes.appendChild(cartao);
+                });
+            } catch (erro) {
+                console.error('Erro ao carregar estudantes:', erro);
+                alert('Erro ao carregar a lista de estudantes');
+            }
+        }
+
+        // Enviar formulário
+        document.getElementById('formEstudante').addEventListener('submit', async e => {
+            e.preventDefault();
+            const id = document.getElementById('idEstudante').value;
+            const dadosFormulario = new FormData();
+            dadosFormulario.append('nome', document.getElementById('nome').value);
+            dadosFormulario.append('email', document.getElementById('email').value);
+            dadosFormulario.append('data_nascimento', document.getElementById('dataNascimento').value);
+            const foto = document.getElementById('foto').files[0];
+            if (foto) dadosFormulario.append('foto', foto);
+
+            try {
+                const url = id ? `${URL_API}/${id}` : URL_API;
+                const metodo = id ? 'PUT' : 'POST';
+                const resposta = await fetch(url, {
+                    method: metodo,
+                    body: dadosFormulario
+                });
+                
+                if (resposta.ok) {
+                    redefinirFormulario();
+                    carregarEstudantes();
+                } else {
+                    const erro = await resposta.json();
+                    alert(erro.erro || 'Erro ao salvar estudante');
+                }
+            } catch (erro) {
+                console.error('Erro:', erro);
+                alert('Erro ao conectar ao servidor');
+            }
+        });
+
+        // Editar estudante
+        async function editarEstudante(id) {
+            try {
+                const resposta = await fetch(`${URL_API}/${id}`);
+                const estudante = await resposta.json();
+                
+                document.getElementById('idEstudante').value = estudante.id;
+                document.getElementById('nome').value = estudante.nome;
+                document.getElementById('email').value = estudante.email;
+                document.getElementById('dataNascimento').value = estudante.data_nascimento;
+                document.getElementById('botaoCancelar').style.display = 'inline';
+            } catch (erro) {
+                console.error('Erro ao carregar estudante:', erro);
+                alert('Erro ao carregar dados do estudante');
+            }
+        }
+
+        // Excluir estudante
+        async function excluirEstudante(id) {
+            if (confirm('Tem certeza que deseja excluir este estudante?')) {
+                try {
+                    const resposta = await fetch(`${URL_API}/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (resposta.ok) {
+                        carregarEstudantes();
+                    } else {
+                        const erro = await resposta.json();
+                        alert(erro.erro || 'Erro ao excluir estudante');
+                    }
+                } catch (erro) {
+                    console.error('Erro:', erro);
+                    alert('Erro ao conectar ao servidor');
+                }
+            }
+        }
+
+        // Redefinir formulário
+        function redefinirFormulario() {
+            document.getElementById('formEstudante').reset();
+            document.getElementById('idEstudante').value = '';
+            document.getElementById('botaoCancelar').style.display = 'none';
+        }
+
+        // Botão cancelar
+        document.getElementById('botaoCancelar').addEventListener('click', redefinirFormulario);
+
+        // Carregar estudantes ao iniciar
+        carregarEstudantes();
+    </script>
+</body>
+</html>
